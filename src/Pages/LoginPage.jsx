@@ -7,10 +7,12 @@ export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
+  const [submitting, setSubmitting] = useState(false)
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
+    setSubmitting(true)
 
     const res = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/login`, {
       method: 'POST',
@@ -24,6 +26,7 @@ export default function LoginPage() {
       navigate('/dashboard')
     } else {
       setError('Invalid email or password')
+      setSubmitting(false)
     }
   }
 
@@ -47,7 +50,9 @@ export default function LoginPage() {
             placeholder="Password"
             type="password"
           />
-          <button className="btn-primary" type="submit">Sign In</button>
+          <button className="btn-primary" type="submit" disabled={submitting}>
+            {submitting ? 'Signing in...' : 'Sign In'}
+          </button>
         </form>
         <p style={{ textAlign: 'center', fontSize: '14px', color: 'var(--muted)' }}>
   Don't have an account? <Link to="/register" style={{ color: 'var(--accent)' }}>Register</Link>
