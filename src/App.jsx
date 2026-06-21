@@ -1,6 +1,6 @@
 import { createBrowserRouter, RouterProvider } from 'react-router-dom'
-import LoginPage from './pages/LoginPage'
-import DashboardPage from './pages/DashboardPage'
+import LoginPage from './Pages/LoginPage'
+import DashboardPage from './Pages/DashboardPage'
 import ProtectedRoute from './Components/ProtectedRoute'
 import TasksPage from './Pages/TasksPage'
 import RegisterPage from './Pages/RegisterPage'
