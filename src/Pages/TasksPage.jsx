@@ -9,43 +9,44 @@ export default function TasksPage() {
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [editingId, setEditingId] = useState(null)
-const [editTitle, setEditTitle] = useState('')
-const [editDescription, setEditDescription] = useState('')
-const handleDeleteTask = async (id) => {
-  const token = localStorage.getItem('token')
+  const [editTitle, setEditTitle] = useState('')
+  const [editDescription, setEditDescription] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [submitting, setSubmitting] = useState(false)
 
-  const res = await fetch(`${import.meta.env.VITE_API_URL}/api/projects/${projectId}/tasks/${id}`, {
-    method: 'DELETE',
-    headers: { Authorization: `Bearer ${token}` }
-  })
-
-  if (res.ok) {
+  const handleDeleteTask = async (id) => {
     const remaining = tasks.filter(t => t.id !== id)
     setTasks(remaining)
-    if (remaining.length === 0) {
-      navigate('/dashboard')
+    if (remaining.length === 0) navigate('/dashboard')
+
+    const token = localStorage.getItem('token')
+    const res = await fetch(`${import.meta.env.VITE_API_URL}/api/projects/${projectId}/tasks/${id}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` }
+    })
+    if (!res.ok) {
+      fetch(`${import.meta.env.VITE_API_URL}/api/projects/${projectId}/tasks`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      }).then(r => r.json()).then(data => setTasks(data))
     }
   }
-}
-const handleUpdate = async (id) => {
-  const token = localStorage.getItem('token')
 
-  const res = await fetch(`${import.meta.env.VITE_API_URL}/api/projects/${projectId}/tasks/${id}`, {
-    method: 'PUT',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`
-    },
-    body: JSON.stringify({ title: editTitle, description: editDescription })
-  })
-
-  if (res.ok) {
-    const updated = await res.json()
-    setTasks(tasks.map(t => t.id === id ? updated : t))
-    setEditingId(null)
+  const handleUpdate = async (id) => {
+    const token = localStorage.getItem('token')
+    const res = await fetch(`${import.meta.env.VITE_API_URL}/api/projects/${projectId}/tasks/${id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify({ title: editTitle, description: editDescription })
+    })
+    if (res.ok) {
+      const updated = await res.json()
+      setTasks(tasks.map(t => t.id === id ? updated : t))
+      setEditingId(null)
+    }
   }
-}
-
 
   useEffect(() => {
     const token = localStorage.getItem('token')
@@ -53,29 +54,42 @@ const handleUpdate = async (id) => {
       headers: { Authorization: `Bearer ${token}` }
     })
       .then(res => res.json())
-      .then(data => setTasks(data))
+      .then(data => {
+        setTasks(data)
+        setLoading(false)
+      })
   }, [projectId])
 
   const handleCreate = async (e) => {
     e.preventDefault()
-    const token = localStorage.getItem('token')
+    if (!title.trim()) return
 
+    const tempId = Date.now()
+    const tempTask = { id: tempId, title, description, _optimistic: true }
+    setTasks(prev => [...prev, tempTask])
+    setTitle('')
+    setDescription('')
+    setSubmitting(true)
+
+    const token = localStorage.getItem('token')
     const res = await fetch(`${import.meta.env.VITE_API_URL}/api/projects/${projectId}/tasks`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${token}`
       },
-      body: JSON.stringify({ title, description })
+      body: JSON.stringify({ title: tempTask.title, description: tempTask.description })
     })
 
     if (res.ok) {
       const newTask = await res.json()
-      setTasks([...tasks, newTask])
-      setTitle('')
-      setDescription('')
+      setTasks(prev => prev.map(t => t.id === tempId ? newTask : t))
+    } else {
+      setTasks(prev => prev.filter(t => t.id !== tempId))
     }
+    setSubmitting(false)
   }
+
   return (
     <div className="page">
       <nav className="navbar">
@@ -86,12 +100,16 @@ const handleUpdate = async (id) => {
       <div className="content">
         <div>
           <h2 className="section-title">Tasks</h2>
-          {tasks.length === 0 ? (
+          {loading ? (
+            <div className="spinner-wrapper">
+              <div className="spinner" />
+            </div>
+          ) : tasks.length === 0 ? (
             <div className="empty-state">No tasks yet. Add one below.</div>
           ) : (
             <div className="task-list">
               {tasks.map(t => (
-                <div key={t.id} className="task-item">
+                <div key={t.id} className={`task-item${t._optimistic ? ' optimistic' : ''}`}>
                   {editingId === t.id ? (
                     <>
                       <input className="form-input" value={editTitle} onChange={e => setEditTitle(e.target.value)} />
@@ -105,8 +123,12 @@ const handleUpdate = async (id) => {
                         <span className="task-title">{t.title}</span>
                         {t.description && <span className="task-desc">{t.description}</span>}
                       </div>
-                      <button className="btn-secondary" onClick={() => { setEditingId(t.id); setEditTitle(t.title); setEditDescription(t.description) }}>Edit</button>
-                      <button className="btn-danger" onClick={() => handleDeleteTask(t.id)}>Delete</button>
+                      {!t._optimistic && (
+                        <>
+                          <button className="btn-secondary" onClick={() => { setEditingId(t.id); setEditTitle(t.title); setEditDescription(t.description) }}>Edit</button>
+                          <button className="btn-danger" onClick={() => handleDeleteTask(t.id)}>Delete</button>
+                        </>
+                      )}
                     </>
                   )}
                 </div>
@@ -124,15 +146,17 @@ const handleUpdate = async (id) => {
                 value={title}
                 onChange={e => setTitle(e.target.value)}
                 placeholder="Task title"
+                disabled={submitting}
               />
               <input
                 className="form-input"
                 value={description}
                 onChange={e => setDescription(e.target.value)}
                 placeholder="Description"
+                disabled={submitting}
               />
-              <button className="btn-primary" type="submit" style={{ width: 'auto', whiteSpace: 'nowrap' }}>
-                Add Task
+              <button className="btn-primary" type="submit" disabled={submitting} style={{ width: 'auto', whiteSpace: 'nowrap' }}>
+                {submitting ? 'Adding...' : 'Add Task'}
               </button>
             </div>
           </form>

@@ -265,3 +265,38 @@
   border: 1px dashed var(--border);
   border-radius: var(--radius);
 }
+
+/* ── Spinner ── */
+.spinner-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 48px;
+}
+
+.spinner {
+  width: 36px;
+  height: 36px;
+  border: 3px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.btn-primary:disabled,
+.btn-secondary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.project-card.optimistic {
+  opacity: 0.6;
+}
+
+.task-item.optimistic {
+  opacity: 0.6;
+}
